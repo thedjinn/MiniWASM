@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>MiniWASM</title>
+    </head>
+
+    <body>
+        <h1>MiniWASM</h1>
+        <p>Open the development console to see log messages.</p>
+
+        <script>
+            class MiniBridge {
+                async bootstrap(url) {
+                    // Fetch wasm file
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw Error("Error loading wasm file: " + response.status);
+                    }
+
+                    // Instantiate WebAssembly context
+                    const data = await response.arrayBuffer();
+                    const webAssembly = await WebAssembly.instantiate(data, {
+                        env: {
+                            console_log: this.extractString(console.log),
+                            console_error: this.extractString(console.error)
+                        }
+                    });
+
+                    // Grab the wasm instance and its memory (wrapped in an Uint8Array)
+                    this.wasm = webAssembly.instance;
+                    this.buffer = new Uint8Array(this.wasm.exports.memory.buffer);
+
+                    // Call the wasm module's entry point
+                    this.wasm.exports.initialize();
+                }
+
+                extractString = fn => (ptr, len) => {
+                    // Get a fresh Uint8Array if the wasm memory buffer was moved
+                    const buffer = this.wasm.exports.memory.buffer;
+                    if (this.buffer !== buffer) {
+                        this.buffer = new Uint8Array(buffer);
+                    }
+
+                    // Make a string from the slice of memory and pass it into fn
+                    fn(String.fromCharCode.apply(null, this.buffer.slice(ptr, ptr + len)));
+                }
+            }
+
+            const bridge = new MiniBridge();
+
+            bridge.bootstrap("miniwasm.wasm").then(function() {
+                console.log("Bootstrap completed, now go build something awesome!");
+
+                // Call example function
+                const value = bridge.wasm.exports.hello(256);
+                console.log("The value returned by hello() was " + value);
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,19 @@
+[package]
+name = "miniwasm"
+version = "1.0.0"
+authors = ["Emil Loer <emil@koffietijd.net>"]
+edition = "2018"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["wee_alloc"]
+
+[dependencies]
+wee_alloc = { version = "0.4.5", optional = true }
+
+[profile.release]
+opt-level = "s"
+lto = true
